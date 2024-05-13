@@ -34,3 +34,6 @@ build/
 
 ### Google Cloud Vision Credentials ###
 src/main/resources/license-plate-reader-credentials.json
+src/main/resources/images/Poza_1.png
+src/main/resources/images/Poza_2.png
+src/main/resources/images/Poza_3.png
