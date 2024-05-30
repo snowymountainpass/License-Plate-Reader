@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.spring.vision.CloudVisionTemplate;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.Feature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -24,6 +26,8 @@ public class VisionService {
 
     @Autowired
     private CloudVisionTemplate cloudVisionTemplate;
+
+    static Logger logger = LoggerFactory.getLogger(VisionService.class);
 
     private Path getImagesPath() throws IOException, URISyntaxException {
 
@@ -65,12 +69,12 @@ public class VisionService {
 
                         if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
                             WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                            Path filename = ev.context();
-                            String fileName = filename.getFileName().toString().replaceFirst("[.][^.]+$", "");
+                            Path path = ev.context();
+                            String fileName = path.getFileName().toString().replaceFirst("[.][^.]+$", "");
 
                             try {
-                                String licensePlate = extractText(filename.getFileName().toString());
-                                sendDetailsToEndpoint(licensePlate, fileName);
+                                String licensePlate = extractText(path.getFileName().toString());
+                                sendDetailsToEndpoint(licensePlate, fileName,directory);
                             } catch (IOException | URISyntaxException e) {
                                 throw new RuntimeException(e);
                             }
@@ -105,7 +109,7 @@ public class VisionService {
         return response.getTextAnnotations(1).getDescription();
     }
 
-    public static void sendDetailsToEndpoint(String licensePlate, String filename) {
+    public static void sendDetailsToEndpoint(String licensePlate, String filename,Path path) {
         try {
 
             URL url = new URL("http://localhost:8080/transaction/addTransaction");
@@ -129,7 +133,13 @@ public class VisionService {
 
             int responseCode = connection.getResponseCode();
             System.out.println("Response Code: " + responseCode);
-
+            logger.info("Response Code: {}", responseCode);
+            //If response ok (200) => we delete the file
+            if(responseCode == HttpURLConnection.HTTP_OK) {
+                System.out.println("Successfully sent details to endpoint");
+                logger.info("Successfully sent details to endpoint");
+                Files.delete(Path.of(path.toString()+ "\\" +filename+".jpg"));
+            }
             connection.disconnect();
 
         } catch (IOException e) {
